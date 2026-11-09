@@ -1,0 +1,265 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Simulador lúdico do algoritmo FIFO Second Chance.">
+    <title>Restaurante da Memória</title>
+    <link rel="stylesheet" href="{% static 'simulador/css/game.css' %}">
+</head>
+<body>
+    <main class="game-shell">
+        <header class="game-header">
+            <div>
+                <p class="eyebrow">SIMULADOR FIFO · SECOND CHANCE</p>
+                <h1>Restaurante da Memória</h1>
+            </div>
+            <div class="game-clock" aria-label="Horário do restaurante">
+                <span>HORÁRIO</span>
+                <time id="gameClock" datetime="09:00">09:00</time>
+                <small id="periodLabel">Manhã</small>
+                <span class="day-progress" aria-label="Progresso do expediente"><i id="dayProgress"></i></span>
+            </div>
+            <div class="header-actions">
+                <button class="button button--quiet" id="speedButton" type="button" title="Alterar velocidade">▶ 1×</button>
+                <button class="button button--quiet" id="pauseButton" type="button">⏸ Pausar</button>
+                <button class="button button--quiet" id="helpButton" type="button">? Como jogar</button>
+                <button class="button button--danger" id="resetButton" type="button">↻ Reiniciar</button>
+            </div>
+        </header>
+
+        <section class="status-bar" aria-live="polite">
+            <span class="status-bar__portrait" aria-hidden="true">👩‍🍳</span>
+            <p id="instructionText">O restaurante está vazio. Receba o primeiro cliente!</p>
+            <div class="tutorial-guide is-hidden" id="tutorialGuide">
+                <span id="tutorialStepLabel">ETAPA 1 DE 4</span>
+                <strong id="tutorialStepTitle">Conheça o restaurante</strong>
+                <div class="tutorial-progress" id="tutorialProgress" aria-label="Progresso do tutorial">
+                    <span data-step="0" title="Analogia">🏪</span><i></i>
+                    <span data-step="1" title="Fila FIFO">👥</span><i></i>
+                    <span data-step="2" title="Segunda chance">↩</span><i></i>
+                    <span data-step="3" title="Liberação">🚪</span>
+                </div>
+                <button class="button button--service" id="nextTutorialButton" type="button">Próxima etapa →</button>
+            </div>
+        </section>
+
+        <div class="game-layout">
+            <aside class="side-panel queue-panel" aria-label="Fila de atendimento">
+                <div class="panel-heading">
+                    <span class="panel-heading__icon" aria-hidden="true">🔔</span>
+                    <div>
+                        <p class="panel-kicker">ORDEM FIFO</p>
+                        <h2>Próximas mesas</h2>
+                    </div>
+                </div>
+                <ol class="queue-list" id="queueList">
+                    <li class="queue-empty">Nenhuma mesa na fila</li>
+                </ol>
+                <div class="waiting-card is-hidden" id="waitingCard">
+                    <p>AGUARDANDO MESA</p>
+                    <span class="waiting-card__face" id="waitingFace" aria-hidden="true">🙂</span>
+                    <strong id="waitingName">Cliente 1</strong>
+                    <small>Ainda não entrou na fila FIFO</small>
+                </div>
+                <p class="queue-tip">O garçom atende primeiro a mesa que está no início da lista.</p>
+            </aside>
+
+            <section class="restaurant-frame" aria-label="Restaurante visto de cima">
+                <div class="restaurant" id="restaurant">
+                    <button class="table table--1" data-table="0" type="button" aria-label="Mesa 1 vazia">
+                        <span class="table__number">MESA 1</span>
+                        <span class="table__top">✦</span>
+                        <span class="table__chairs" aria-hidden="true"></span>
+                        <span class="customer-slot"></span>
+                        <span class="order-bubble" aria-hidden="true"></span>
+                        <span class="table__status"></span>
+                    </button>
+                    <button class="table table--2" data-table="1" type="button" aria-label="Mesa 2 vazia">
+                        <span class="table__number">MESA 2</span>
+                        <span class="table__top">✦</span>
+                        <span class="table__chairs" aria-hidden="true"></span>
+                        <span class="customer-slot"></span>
+                        <span class="order-bubble" aria-hidden="true"></span>
+                        <span class="table__status"></span>
+                    </button>
+                    <button class="table table--3" data-table="2" type="button" aria-label="Mesa 3 vazia">
+                        <span class="table__number">MESA 3</span>
+                        <span class="table__top">✦</span>
+                        <span class="table__chairs" aria-hidden="true"></span>
+                        <span class="customer-slot"></span>
+                        <span class="order-bubble" aria-hidden="true"></span>
+                        <span class="table__status"></span>
+                    </button>
+
+                    <div class="cashier" aria-label="Caixa">
+                        <span class="cashier__sign">CAIXA</span>
+                        <span aria-hidden="true">▤</span>
+                    </div>
+                    <div class="entrance" aria-label="Entrada">
+                        <span>ENTRADA</span>
+                        <span aria-hidden="true">⇠</span>
+                    </div>
+                    <div class="corridor-sign">CORREDOR</div>
+
+                    <div class="speech-bubble is-hidden" id="speechBubble">Tem uma mesa livre?</div>
+                    <div class="moving-customer is-hidden at-entrance" id="movingCustomer" aria-hidden="true">
+                        <span class="pixel-person">🙂</span>
+                        <span class="customer-tag"></span>
+                    </div>
+                    <div class="departing-customer is-hidden" id="departingCustomer" aria-hidden="true">
+                        <span class="departing-customer__bubble">Conta paga! Até logo!</span>
+                        <span class="departing-customer__face" id="departingFace">🙂</span>
+                    </div>
+                    <div class="waiter" id="waiter" aria-label="Garçom">
+                        <span class="waiter__bubble is-hidden" id="waiterBubble">Próxima mesa!</span>
+                        <span aria-hidden="true">🤵</span>
+                        <small>GARÇOM</small>
+                    </div>
+                    <div class="lighting-overlay" aria-hidden="true"></div>
+                    <div class="second-chance-banner is-hidden" id="secondChanceBanner" role="status">
+                        <strong>↩ SEGUNDA CHANCE!</strong>
+                        <span id="secondChanceText">A mesa foi para o final da fila.</span>
+                    </div>
+                    <div class="tutorial-stage-overlay is-hidden" id="tutorialStageOverlay">
+                        <div class="tutorial-stage-card" id="tutorialStageCard">
+                            <span class="tutorial-stage-card__icon" id="tutorialStageIcon" aria-hidden="true">🏪</span>
+                            <p id="tutorialStageNumber">ETAPA 1 DE 4</p>
+                            <h2 id="tutorialStageCardTitle">A analogia do restaurante</h2>
+                            <p id="tutorialStageDescription">Mesas são frames, clientes são páginas e a lista representa o FIFO.</p>
+                            <button class="button button--primary" id="startTutorialStageButton" type="button">Começar etapa →</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="side-panel actions-panel" aria-label="Controles do simulador">
+                <div class="panel-heading">
+                    <span class="panel-heading__icon" aria-hidden="true">⏱️</span>
+                    <div>
+                        <p class="panel-kicker">RESTAURANTE VIVO</p>
+                        <h2>Tudo em movimento</h2>
+                    </div>
+                </div>
+                <div class="automation-card">
+                    <div><span aria-hidden="true">🚪</span><p>Próximo cliente<small id="nextArrivalText">em 5 min</small></p></div>
+                </div>
+                <div class="manual-task">
+                    <span aria-hidden="true">☝️</span>
+                    <p><b>Sua única tarefa</b>Escolha uma mesa quando um cliente chegar.</p>
+                </div>
+
+                <div class="score-card">
+                    <h3>Resumo do dia</h3>
+                    <dl>
+                        <div><dt>Clientes</dt><dd id="customersStat">0</dd></div>
+                        <div><dt>Atendimentos</dt><dd id="visitsStat">0</dd></div>
+                        <div><dt>2ªs chances</dt><dd id="chancesStat">0</dd></div>
+                        <div><dt>Saídas</dt><dd id="departuresStat">0</dd></div>
+                        <div><dt>Maior fila</dt><dd id="maxQueueStat">0</dd></div>
+                    </dl>
+                </div>
+            </aside>
+        </div>
+
+        <section class="learning-panel">
+            <div>
+                <p class="panel-kicker">DIÁRIO DO RESTAURANTE</p>
+                <h2>O que acabou de acontecer?</h2>
+            </div>
+            <ul class="event-log" id="eventLog" aria-live="polite">
+                <li>O restaurante abriu e todas as mesas estão livres.</li>
+            </ul>
+            <details class="teacher-note">
+                <summary>Ver tradução para Sistemas Operacionais</summary>
+                <div class="teacher-popover">
+                    <div class="translation-grid">
+                        <span>Cliente <b>→ Página</b></span>
+                        <span>Mesa <b>→ Quadro de memória</b></span>
+                        <span>Pedido <b>→ Bit de referência 1</b></span>
+                        <span>Segunda chance <b>→ Bit volta para 0</b></span>
+                    </div>
+                    <div class="technical-history">
+                        <h3>Histórico de transições</h3>
+                        <table>
+                            <thead>
+                                <tr><th>Horário</th><th>Fila antes</th><th>Decisão</th><th>Fila depois</th></tr>
+                            </thead>
+                            <tbody id="technicalHistory">
+                                <tr><td colspan="4">O garçom ainda não atendeu nenhuma mesa.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </section>
+    </main>
+
+    <dialog class="help-dialog" id="helpDialog">
+        <form method="dialog">
+            <button class="dialog-close" aria-label="Fechar ajuda">×</button>
+            <p class="panel-kicker">COMO JOGAR</p>
+            <h2>Cuide do restaurante!</h2>
+            <ol>
+                <li>Os clientes chegam sozinhos. Quando um deles parar no caixa, escolha uma mesa vazia.</li>
+                <li>Os pedidos aparecem automaticamente enquanto o tempo passa.</li>
+                <li>O garçom sempre atende primeiro a mesa que está no início da fila.</li>
+                <li>Quem pediu comida ganha outra chance. Quem não pediu paga e sai.</li>
+            </ol>
+            <p>Cada segundo vale um minuto no restaurante. Quando chegar sua vez de escolher uma mesa, o relógio pausa automaticamente.</p>
+            <button class="button button--primary" value="close">Entendi, vamos jogar!</button>
+        </form>
+    </dialog>
+
+    <dialog class="end-dialog" id="endDialog">
+        <div class="end-dialog__content">
+            <p class="panel-kicker">18:00 · EXPEDIENTE ENCERRADO</p>
+            <h2>Resumo do restaurante</h2>
+            <p>Você acompanhou as mesas durante um dia inteiro!</p>
+            <dl class="end-summary">
+                <div><dt>Clientes recebidos</dt><dd id="endCustomers">0</dd></div>
+                <div><dt>Atendimentos do garçom</dt><dd id="endVisits">0</dd></div>
+                <div><dt>Segundas chances</dt><dd id="endChances">0</dd></div>
+                <div><dt>Mesas liberadas</dt><dd id="endDepartures">0</dd></div>
+                <div><dt>Maior fila FIFO</dt><dd id="endMaxQueue">0</dd></div>
+            </dl>
+            <p class="end-explanation">Cada pedido deu uma nova chance para a mesa continuar ocupada. As mesas sem novos pedidos foram liberadas seguindo a ordem FIFO.</p>
+            <button class="button button--primary" id="newDayButton" type="button">↻ Começar outro dia</button>
+        </div>
+    </dialog>
+
+    <dialog class="mode-dialog" id="modeDialog">
+        <div class="mode-dialog__content">
+            <p class="panel-kicker">ESCOLHA COMO JOGAR</p>
+            <h2>Bem-vindo ao Restaurante da Memória!</h2>
+            <p>Você quer aprender passo a passo ou observar uma simulação diferente a cada partida?</p>
+            <div class="mode-options">
+                <button class="mode-option mode-option--tutorial" id="tutorialModeButton" type="button">
+                    <span aria-hidden="true">🎓</span>
+                    <strong>Começar apresentação</strong>
+                    <small>Quatro etapas controladas pelo apresentador explicam o algoritmo passo a passo.</small>
+                </button>
+                <button class="mode-option" id="freeModeButton" type="button">
+                    <span aria-hidden="true">🎲</span>
+                    <strong>Modo livre</strong>
+                    <small>Clientes, pedidos e decisões acontecem de maneira aleatória.</small>
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="tutorial-dialog" id="tutorialDialog">
+        <div class="tutorial-dialog__content">
+            <span class="tutorial-dialog__star" aria-hidden="true">★</span>
+            <p class="panel-kicker">FIM DA APRESENTAÇÃO</p>
+            <h2>Obrigado!</h2>
+            <p>Agradecemos a atenção de todos! Esperamos que o Restaurante da Memória tenha ajudado a entender o FIFO Second Chance.</p>
+            <button class="button button--primary" id="repeatTutorialButton" type="button">↻ Apresentar novamente</button>
+            <button class="button button--quiet" id="continueFreeButton" type="button">🎲 Explorar o modo livre</button>
+        </div>
+    </dialog>
+
+    <script src="{% static 'simulador/js/game.js' %}"></script>
+</body>
+</html>
