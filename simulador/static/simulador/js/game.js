@@ -5,6 +5,7 @@ const faces = ["🙂", "😊", "😄", "🤓", "😎", "🥰", "🧓", "👵"];
 const OPENING_TIME_IN_MINUTES = 9 * 60;
 const CLOSING_TIME_IN_MINUTES = 9 * 60;
 const AFTER_SERVICE_GRACE = 6;
+const ORDER_CHANCE = 0.4;
 const TUTORIAL_STAGES = [
     { icon: "🏪", title: "A analogia do restaurante", description: "Mesas são frames, clientes são páginas e a lista representa a ordem FIFO." },
     { icon: "👥", title: "Formando a fila FIFO", description: "Três clientes ocupam as mesas. A ordem de chegada define quem será atendido primeiro." },
@@ -478,14 +479,18 @@ function generateDueOrders() {
     const newOrderTables = [];
 
     state.tables.forEach((customer, tableIndex) => {
-        if (!customer || customer.hasOrder || state.elapsedMinutes < customer.nextOrderAt) return;
+        if (!customer
+            || customer.hasOrder
+            || customer.nextOrderAt === null
+            || state.elapsedMinutes < customer.nextOrderAt) return;
 
-        if (Math.random() < 0.65) {
+        // Cada cliente pode tentar fazer apenas um pedido antes da próxima
+        // passagem do garçom. Uma tentativa sem pedido não é reagendada.
+        customer.nextOrderAt = null;
+        if (Math.random() < ORDER_CHANCE) {
             customer.hasOrder = true;
             customer.food = foods[Math.floor(Math.random() * foods.length)];
             newOrderTables.push(tableIndex + 1);
-        } else {
-            customer.nextOrderAt = state.elapsedMinutes + randomBetween(3, 7);
         }
     });
 
